@@ -38,7 +38,14 @@ export default function ProdutoDetalhesScreen() {
           <View style={styles.infoPrincipal}>
             <View style={styles.textoIdentificacao}>
               <Text style={styles.nomeProduto}>{produto.nome}</Text>
-              <Text style={styles.vendedorProduto}>por: {produto.vendedorNome}</Text>
+              
+              <TouchableOpacity 
+                onPress={() => router.push(`/vendedor/${produto.vendedorNome}`)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.vendedorProduto}>por: {produto.vendedorNome}</Text>
+              </TouchableOpacity>
+              
             </View>
             <View style={styles.tagPreco}>
               <Text style={styles.textoPreco}>R$ {produto.preco.toFixed(2)}</Text>
@@ -137,6 +144,7 @@ const styles = StyleSheet.create({
     color: '#007bff',
     fontFamily: 'InriaSerif-Regular',
     marginTop: 2,
+    textDecorationLine: 'underline', // Destaca discretamente que o texto é um link clicável
   },
   tagPreco: {
     backgroundColor: '#ff0000',
