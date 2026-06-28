@@ -40,6 +40,7 @@ export default function RootLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="produto/[id]" />
       <Stack.Screen name="vendedor/[nome]" />
+      <Stack.Screen name="meus-produtos" />
     </Stack>
   );
 }
