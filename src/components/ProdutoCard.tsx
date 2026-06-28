@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ProdutoMock } from '../types/produto';
 
 interface Props {
@@ -10,8 +11,14 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 export default function ProdutoCard({ produto }: Props) {
+  const router = useRouter();
+
   return (
-    <View style={styles.card}>
+    <TouchableOpacity 
+      style={styles.card} 
+      onPress={() => router.push(`/produto/${produto.id}`)}
+      activeOpacity={0.8}
+    >
       <View style={styles.imageContainer}>
         <Image source={{ uri: produto.fotos }} style={styles.image} />
         <View style={styles.tagPreco}>
@@ -23,7 +30,7 @@ export default function ProdutoCard({ produto }: Props) {
         <Text style={styles.titulo}>{produto.nome}</Text>
         <Text style={styles.vendedor}>por: {produto.vendedorNome}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

@@ -38,6 +38,7 @@ export default function RootLayout() {
       <Stack.Screen name="auth/login" />
       <Stack.Screen name="auth/cadastro" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="produto/[id]" />
     </Stack>
   );
 }
