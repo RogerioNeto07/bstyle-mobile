@@ -57,15 +57,15 @@ export default function MeusProdutosScreen() {
         showsVerticalScrollIndicator={false}
         
         ListHeaderComponent={
-          <TouchableOpacity 
-            style={styles.botaoAdicionar}
-            onPress={() => Alert.alert('Novo Produto', 'Navegar para formulário de cadastro')}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add-circle-outline" size={24} color="#fff" />
-            <Text style={styles.textoBotaoAdicionar}>Adicionar Novo Produto</Text>
-          </TouchableOpacity>
-        }
+            <TouchableOpacity 
+                style={styles.botaoAdicionar}
+                onPress={() => router.push('/novo-produto')}
+                activeOpacity={0.8}
+            >
+                <Ionicons name="add-circle-outline" size={24} color="#fff" />
+                <Text style={styles.textoBotaoAdicionar}>Adicionar Novo Produto</Text>
+            </TouchableOpacity>
+            }
 
         ListEmptyComponent={
           <Text style={styles.textVazio}>Você ainda não possui produtos cadastrados.</Text>
