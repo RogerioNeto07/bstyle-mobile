@@ -70,7 +70,11 @@ export default function PerfilVendedorScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.botaoAvaliacoes}>
+          <TouchableOpacity 
+            style={styles.botaoAvaliacoes}
+            onPress={() => router.push(`/vendedor/${nome}/avaliacoes`)}
+            activeOpacity={0.8}
+          >
             <Text style={styles.textoBotaoAvaliacoes}>Avaliações</Text>
             <Ionicons name="star" size={18} color="#fff" style={styles.iconBotao} />
           </TouchableOpacity>
