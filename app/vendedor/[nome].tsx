@@ -1,38 +1,120 @@
-import React from 'react';
-import { StyleSheet, View, Text, Image, TouchableOpacity, ScrollView, Linking, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, Image, TouchableOpacity, ScrollView, Linking, Platform, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import api from '../../src/services/api'; // Certifique-se de que o caminho até o seu axios está correto
 
 export default function PerfilVendedorScreen() {
   const router = useRouter();
-  const { nome } = useLocalSearchParams();
+  
+  // Captura o parâmetro da rota vendedor/[id]
+  const { id } = useLocalSearchParams();
 
-  const dadosVendedor = {
-    nomeCompleto: nome === 'jaqueline' ? 'Jaqueline Mota' : `${nome}`,
-    email: 'jaqueline.m@gmail.com',
-    contato: '+55 (84) 99999-9999',
-    endereco: 'Pau dos Ferros - Avenida Getúlio Vargas 1323',
-    fotoUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&auto=format&fit=crop&q=80',
+  // Estados do componente
+  const [vendedor, setVendedor] = useState<any>(null);
+  const [carregando, setCarregando] = useState<boolean>(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    // AJUSTE CRUCIAL: Garante que temos um ID válido e limpa caso venha como Array do Expo Router
+    const vendedorId = Array.isArray(id) ? id[0] : id;
+
+    if (!vendedorId) {
+      setErro("ID do vendedor inválido.");
+      setCarregando(false);
+      return;
+    }
+
+    const buscarDadosVendedor = async () => {
+      try {
+        setCarregando(true);
+        setErro(null);
+
+        // Faz a chamada à nova rota @GetMapping("/{id}") do Spring Boot
+        const resposta = await api.get(`/usuarios/${vendedorId}`);
+        setVendedor(resposta.data);
+      } catch (err: any) {
+        console.error("Erro ao buscar dados do vendedor:", err);
+        setErro("Não foi possível carregar o perfil deste vendedor.");
+      } finally {
+        setCarregando(false);
+      }
+    };
+
+    buscarDadosVendedor();
+  }, [id]);
+
+  // Trata o endereço dinâmico vindo do seu UsuarioResponseDTO
+  const obterEnderecoFormatado = () => {
+    if (!vendedor) return 'Endereço não informado';
+    
+    const partes = [vendedor.rua, vendedor.numero, vendedor.cidade, vendedor.estado];
+    // Filtra strings vazias ou nulas e junta com vírgulas
+    const enderecoCompleto = partes.filter(p => p && p.trim() !== '').join(', ');
+    
+    return enderecoCompleto || `${vendedor.cidade || 'Cidade não informada'} - ${vendedor.estado || ''}`;
+  };
+
+  // Trata a foto do perfil usando o IP do seu servidor local backend
+  const obterUrlAvatar = () => {
+    if (!vendedor || !vendedor.fotoPerfilUrl) {
+      return 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&auto=format&fit=crop&q=80';
+    }
+
+    const foto = vendedor.fotoPerfilUrl;
+    if (foto.startsWith('http://') || foto.startsWith('https://')) {
+      if (foto.includes('localhost:8080')) {
+        return foto.replace('localhost:8080', '192.168.0.8:8080'); // Substitua pelo IP da sua máquina se necessário
+      }
+      return foto;
+    }
+    
+    return `http://192.168.0.8:8080/uploads/${foto}`;
   };
 
   const abrirWhatsapp = () => {
-    const numeroLimpo = dadosVendedor.contato.replace(/[^\d]/g, '');
+    if (!vendedor || !vendedor.telefone) return;
+    const numeroLimpo = vendedor.telefone.replace(/[^\d]/g, '');
     Linking.openURL(`https://wa.me/${numeroLimpo}`);
   };
 
   const abrirMapa = () => {
-    const enderecoFormatado = encodeURIComponent(dadosVendedor.endereco);
+    const endereco = obterEnderecoFormatado();
+    if (!endereco || endereco === 'Endereço não informado') return;
+
+    const enderecoFormatado = encodeURIComponent(endereco);
     
     const url = Platform.select({
       ios: `maps:0,0?q=${enderecoFormatado}`,
       android: `geo:0,0?q=${enderecoFormatado}`,
-      default: `https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`
+      default: `http://googleusercontent.com/maps.google.com/?q=${enderecoFormatado}`
     });
 
     Linking.openURL(url).catch(() => {
-      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${enderecoFormatado}`);
+      Linking.openURL(`http://googleusercontent.com/maps.google.com/?q=${enderecoFormatado}`);
     });
   };
+
+  if (carregando) {
+    return (
+      <View style={styles.containerErro}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <Text style={[styles.textErro, { marginTop: 12 }]}>A carregar o perfil...</Text>
+      </View>
+    );
+  }
+
+  if (erro || !vendedor) {
+    return (
+      <View style={styles.containerErro}>
+        <Ionicons name="alert-circle" size={48} color="#ff0055" />
+        <Text style={styles.textErro}>{erro || "Vendedor não encontrado."}</Text>
+        <TouchableOpacity style={styles.botaoVoltar} onPress={() => router.back()}>
+          <Text style={styles.textoBotaoVoltar}>Voltar</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -48,31 +130,36 @@ export default function PerfilVendedorScreen() {
         <View style={styles.card}>
           
           <View style={styles.avatarContainer}>
-            <Image source={{ uri: dadosVendedor.fotoUrl }} style={styles.avatar} />
-            <TouchableOpacity style={styles.botaoTelefone} onPress={abrirWhatsapp} activeOpacity={0.8}>
-              <Ionicons name="call" size={20} color="#fff" />
-            </TouchableOpacity>
+            <Image source={{ uri: obterUrlAvatar() }} style={styles.avatar} />
+            {vendedor.telefone && (
+              <TouchableOpacity style={styles.botaoTelefone} onPress={abrirWhatsapp} activeOpacity={0.8}>
+                <Ionicons name="logo-whatsapp" size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
           </View>
 
-          <Text style={styles.nomeVendedor}>{dadosVendedor.nomeCompleto}</Text>
+          <Text style={styles.nomeVendedor}>{vendedor.nome}</Text>
 
           <View style={styles.infoBlock}>
-            <Text style={styles.infoTexto}>E-mail: <Text style={styles.infoValor}>{dadosVendedor.email}</Text></Text>
-            <Text style={styles.infoTexto}>Contato: <Text style={styles.infoValor}>{dadosVendedor.contato}</Text></Text>
+            {/* O seu UsuarioResponseDTO retorna 'login', mapeamos aqui como o E-mail */}
+            <Text style={styles.infoTexto}>E-mail: <Text style={styles.infoValor}>{vendedor.login || 'Não informado'}</Text></Text>
+            <Text style={styles.infoTexto}>Contato: <Text style={styles.infoValor}>{vendedor.telefone || 'Não informado'}</Text></Text>
             
             <TouchableOpacity 
               style={styles.enderecoContainer} 
               onPress={abrirMapa}
               activeOpacity={0.6}
+              disabled={obterEnderecoFormatado() === 'Endereço não informado'}
             >
-              <Text style={styles.infoTexto}>Endereço: <Text style={styles.infoValor}>{dadosVendedor.endereco}</Text></Text>
+              <Text style={styles.infoTexto}>Endereço: <Text style={styles.infoValor}>{obterEnderecoFormatado()}</Text></Text>
               <Ionicons name="location" size={24} color="#007bff" style={styles.iconLocation} />
             </TouchableOpacity>
           </View>
 
+          {/* Envia o ID limpo numérico para a rota de avaliações */}
           <TouchableOpacity 
             style={styles.botaoAvaliacoes}
-            onPress={() => router.push(`/vendedor/${nome}/avaliacoes`)}
+            onPress={() => router.push(`/vendedor/${Array.isArray(id) ? id[0] : id}/avaliacoes`)}
             activeOpacity={0.8}
           >
             <Text style={styles.textoBotaoAvaliacoes}>Avaliações</Text>
@@ -233,5 +320,29 @@ const styles = StyleSheet.create({
   bottomBar: {
     height: 50,
     backgroundColor: '#000',
+  },
+  containerErro: {
+    flex: 1,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  textErro: {
+    fontSize: 16,
+    color: '#000',
+    marginBottom: 20,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  botaoVoltar: {
+    backgroundColor: '#000',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  textoBotaoVoltar: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

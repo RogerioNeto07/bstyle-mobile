@@ -1,17 +1,41 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, ScrollView, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TextInput, ScrollView, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ProdutoCard from '../../src/components/ProdutoCard';
-import { PRODUTOS_MOCK } from '../../src/services/mockDados';
+import api from '../../src/services/api';
 
 const CATEGORIAS = ['roupas', 'acessórios', 'plus size'];
 
 export default function HomeScreen() {
   const [busca, setBusca] = useState('');
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string | null>(null);
+  
+  const [produtos, setProdutos] = useState<any[]>([]);
+  const [carregando, setCarregando] = useState<boolean>(true);
+  const [erro, setErro] = useState<string | null>(null);
 
-  const produtosExibidos = PRODUTOS_MOCK.filter(p => {
+  const carregarProdutos = async () => {
+    try {
+      setCarregando(true);
+      setErro(null);
+      
+      const resposta = await api.get('/produtos'); 
+      
+      setProdutos(resposta.data);
+    } catch (err: any) {
+      console.error("Erro ao buscar produtos da API:", err);
+      setErro("Não foi possível carregar os produtos.");
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  useEffect(() => {
+    carregarProdutos();
+  }, []);
+
+  const produtosExibidos = produtos.filter(p => {
     if (categoriaSelecionada && p.tipoNome !== categoriaSelecionada) return false;
     if (busca && !p.nome.toLowerCase().includes(busca.toLowerCase())) return false;
     return true;
@@ -63,18 +87,37 @@ export default function HomeScreen() {
         )}
       </View>
 
-      <FlatList
-        data={produtosExibidos}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => <ProdutoCard produto={item} />}
-        numColumns={2}
-        columnWrapperStyle={styles.rowGrid}
-        contentContainerStyle={styles.gridContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <Text style={styles.textVazio}>Nenhum produto encontrado.</Text>
-        }
-      />
+      {carregando ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#000" />
+          <Text style={styles.textFeedback}>Carregando produtos...</Text>
+        </View>
+      ) : erro ? (
+        <View style={styles.centerContainer}>
+          <Ionicons name="alert-circle" size={40} color="red" />
+          <Text style={styles.textFeedback}>{erro}</Text>
+          <TouchableOpacity style={styles.botaoTentarNovamente} onPress={carregarProdutos}>
+            <Text style={styles.textoBotaoTentar}>Tentar Novamente</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={produtosExibidos}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => <ProdutoCard produto={item} />}
+          numColumns={2}
+          columnWrapperStyle={styles.rowGrid}
+          contentContainerStyle={styles.gridContainer}
+          showsVerticalScrollIndicator={false}
+          
+          refreshing={carregando}
+          onRefresh={carregarProdutos}
+
+          ListEmptyComponent={
+            <Text style={styles.textVazio}>Nenhum produto encontrado.</Text>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -173,4 +216,28 @@ const styles = StyleSheet.create({
     marginTop: 40,
     fontFamily: 'InriaSerif-Regular',
   },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  textFeedback: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#555',
+    textAlign: 'center',
+    fontFamily: 'InriaSerif-Regular',
+  },
+  botaoTentarNovamente: {
+    marginTop: 15,
+    backgroundColor: '#000',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  textoBotaoTentar: {
+    color: '#fff',
+    fontWeight: 'bold',
+  }
 });

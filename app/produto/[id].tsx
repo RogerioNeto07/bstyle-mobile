@@ -1,19 +1,85 @@
-import React from 'react';
-import { StyleSheet, View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { PRODUTOS_MOCK } from '../../src/services/mockDados';
+import api from '../../src/services/api';
 
 export default function ProdutoDetalhesScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   
-  const produto = PRODUTOS_MOCK.find(p => p.id.toString() === id);
+  const [produto, setProduto] = useState<any>(null);
+  const [carregando, setCarregando] = useState<boolean>(true);
+  const [erro, setErro] = useState<string | null>(null);
 
-  if (!produto) {
+  useEffect(() => {
+    if (!id) return;
+
+    const buscarDetalhesProduto = async () => {
+      try {
+        setCarregando(true);
+        setErro(null);
+        
+        const resposta = await api.get(`/produtos/${id}`);
+        setProduto(resposta.data);
+      } catch (err: any) {
+        console.error("Erro ao buscar produto individual:", err);
+        setErro("Não foi possível carregar as informações deste produto.");
+      } finally {
+        setCarregando(false);
+      }
+    };
+
+    buscarDetalhesProduto();
+  }, [id]);
+
+  const obterUrlImagem = () => {
+    if (!produto) return 'https://via.placeholder.com/150';
+    
+    const fotoDoProduto = produto.fotos;
+
+    if (!fotoDoProduto) {
+      return 'https://via.placeholder.com/150';
+    }
+
+    let nomeArquivo = '';
+
+    if (typeof fotoDoProduto === 'string') {
+      nomeArquivo = fotoDoProduto;
+    } else if (Array.isArray(fotoDoProduto) && fotoDoProduto.length > 0) {
+      const primeira = fotoDoProduto[0];
+      nomeArquivo = typeof primeira === 'string' ? primeira : (primeira?.fotoUrl || primeira?.foto_url || '');
+    } else if (typeof fotoDoProduto === 'object') {
+      nomeArquivo = fotoDoProduto.fotoUrl || fotoDoProduto.foto_url || '';
+    }
+
+    if (!nomeArquivo) {
+      return 'https://via.placeholder.com/150';
+    }
+
+    if (nomeArquivo.startsWith('http://') || nomeArquivo.startsWith('https://')) {
+      if (nomeArquivo.includes('localhost:8080')) {
+        return nomeArquivo.replace('localhost:8080', '192.168.0.8:8080');
+      }
+      return nomeArquivo;
+    }
+
+    return `http://192.168.0.8:8080/uploads/${nomeArquivo}`;
+  };
+
+  if (carregando) {
     return (
       <View style={styles.containerErro}>
-        <Text style={styles.textErro}>Produto não encontrado.</Text>
+        <ActivityIndicator size="large" color="#ff0055" />
+        <Text style={[styles.textErro, { marginTop: 12 }]}>Carregando produto...</Text>
+      </View>
+    );
+  }
+
+  if (erro || !produto) {
+    return (
+      <View style={styles.containerErro}>
+        <Text style={styles.textErro}>{erro || "Produto não encontrado."}</Text>
         <TouchableOpacity style={styles.botaoVoltar} onPress={() => router.back()}>
           <Text style={styles.textoBotaoVoltar}>Voltar</Text>
         </TouchableOpacity>
@@ -33,31 +99,75 @@ export default function ProdutoDetalhesScreen() {
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
-          <Image source={{ uri: produto.fotos }} style={styles.imagem} resizeMode="contain" />
+          <Image source={{ uri: obterUrlImagem() }} style={styles.imagem} resizeMode="contain" />
           
           <View style={styles.infoPrincipal}>
             <View style={styles.textoIdentificacao}>
               <Text style={styles.nomeProduto}>{produto.nome}</Text>
               
               <TouchableOpacity 
-                onPress={() => router.push(`/vendedor/${produto.vendedorNome}`)}
+                onPress={() => router.push(`/vendedor/${produto.vendedorId}`)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.vendedorProduto}>por: {produto.vendedorNome}</Text>
+                <Text style={styles.vendedorProduto}>
+                  por: {produto.vendedorNome || 'BStyle Vendor'}
+                </Text>
               </TouchableOpacity>
-              
             </View>
             <View style={styles.tagPreco}>
-              <Text style={styles.textoPreco}>R$ {produto.preco.toFixed(2)}</Text>
+              <Text style={styles.textoPreco}>R$ {produto.preco ? produto.preco.toFixed(2) : '0.00'}</Text>
             </View>
           </View>
 
           <View style={styles.secaoDetalhes}>
             <Text style={styles.tituloSecao}>Informações:</Text>
             
-            <Text style={styles.itemInfo}>Tamanho: <Text style={styles.valorInfo}>M</Text></Text>
-            <Text style={styles.itemInfo}>Cor: <Text style={styles.valorInfo}>rosa</Text></Text>
-            <Text style={styles.itemInfo}>Descrição: <Text style={styles.valorInfo}>top de academia rosa usado</Text></Text>
+            {/* Renderiza dinamicamente a lista de cores vindas do DTO */}
+            <Text style={styles.itemInfo}>
+              Cores disponíveis:{' '}
+              <Text style={styles.valorInfo}>
+                {produto.coresNomes && produto.coresNomes.length > 0 
+                  ? produto.coresNomes.join(', ') 
+                  : 'Não especificada'}
+              </Text>
+            </Text>
+
+            {/* Renderiza dinamicamente as Tags/Categorias do DTO */}
+            <Text style={styles.itemInfo}>
+              Tags:{' '}
+              <Text style={styles.valorInfo}>
+                {produto.tagsNomes && produto.tagsNomes.length > 0 
+                  ? produto.tagsNomes.join(', ') 
+                  : 'Nenhuma'}
+              </Text>
+            </Text>
+
+            {/* Exibe o tipo do produto */}
+            {produto.tipoNome && (
+              <Text style={styles.itemInfo}>
+                Categoria: <Text style={styles.valorInfo}>{produto.tipoNome}</Text>
+              </Text>
+            )}
+
+            {/* Exibe a quantidade em estoque */}
+            <Text style={styles.itemInfo}>
+              Quantidade em estoque: <Text style={styles.valorInfo}>{produto.quantidade ?? 0}</Text>
+            </Text>
+
+            {/* Exibe a descrição real digitada */}
+            <Text style={styles.itemInfo}>
+              Descrição:{' '}
+              <Text style={styles.valorInfo}>
+                {produto.descricao || 'Sem descrição informada para este produto.'}
+              </Text>
+            </Text>
+
+            {/* Localização opcional se o DTO trouxer */}
+            {produto.vendedorCidade && (
+              <Text style={styles.itemInfo}>
+                Localização: <Text style={styles.valorInfo}>{produto.vendedorCidade}</Text>
+              </Text>
+            )}
           </View>
 
           <TouchableOpacity style={styles.botaoPedir}>
@@ -144,7 +254,7 @@ const styles = StyleSheet.create({
     color: '#007bff',
     fontFamily: 'InriaSerif-Regular',
     marginTop: 2,
-    textDecorationLine: 'underline', // Destaca discretamente que o texto é um link clicável
+    textDecorationLine: 'underline',
   },
   tagPreco: {
     backgroundColor: '#ff0000',
@@ -170,9 +280,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
     marginBottom: 10,
+    lineHeight: 22,
   },
   valorInfo: {
     color: '#555',
+    fontWeight: '400',
   },
   botaoPedir: {
     backgroundColor: '#24E300',
@@ -203,6 +315,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
     marginBottom: 20,
+    textAlign: 'center',
   },
   botaoVoltar: {
     backgroundColor: '#000',

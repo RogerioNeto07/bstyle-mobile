@@ -1,10 +1,9 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ProdutoMock } from '../types/produto';
 
 interface Props {
-  produto: ProdutoMock;
+  produto: any;
 }
 
 const { width } = Dimensions.get('window');
@@ -13,6 +12,37 @@ const CARD_WIDTH = (width - 48) / 2;
 export default function ProdutoCard({ produto }: Props) {
   const router = useRouter();
 
+  const obterUrlImagem = () => {
+    const fotoDoProduto = produto.fotos;
+
+    if (!fotoDoProduto) {
+      return 'https://via.placeholder.com/150';
+    }
+
+    let nomeArquivo = '';
+
+    if (typeof fotoDoProduto === 'string') {
+      nomeArquivo = fotoDoProduto;
+    } else if (Array.isArray(fotoDoProduto) && fotoDoProduto.length > 0) {
+      const primeira = fotoDoProduto[0];
+      nomeArquivo = typeof primeira === 'string' ? primeira : (primeira?.fotoUrl || primeira?.foto_url || '');
+    } else if (typeof fotoDoProduto === 'object') {
+      nomeArquivo = fotoDoProduto.fotoUrl || fotoDoProduto.foto_url || '';
+    }
+
+    if (!nomeArquivo) {
+      return 'https://via.placeholder.com/150';
+    }
+
+    if (nomeArquivo.startsWith('http://') || nomeArquivo.startsWith('https://')) {
+      if (nomeArquivo.includes('localhost:8080')) {
+        return nomeArquivo.replace('localhost:8080', '192.168.0.8:8080');
+      }
+      return nomeArquivo;
+    }
+    return `http://192.168.0.8:8080/uploads/${nomeArquivo}`;
+  };
+
   return (
     <TouchableOpacity 
       style={styles.card} 
@@ -20,7 +50,7 @@ export default function ProdutoCard({ produto }: Props) {
       activeOpacity={0.8}
     >
       <View style={styles.imageContainer}>
-        <Image source={{ uri: produto.fotos }} style={styles.image} />
+        <Image source={{ uri: obterUrlImagem() }} style={styles.image} />
         <View style={styles.tagPreco}>
           <Text style={styles.textoPreco}>R$ {produto.preco.toFixed(2)}</Text>
         </View>
@@ -28,7 +58,7 @@ export default function ProdutoCard({ produto }: Props) {
       
       <View style={styles.infoContainer}>
         <Text style={styles.titulo}>{produto.nome}</Text>
-        <Text style={styles.vendedor}>por: {produto.vendedorNome}</Text>
+        <Text style={styles.vendedor}>por: {produto.vendedorNome || 'BStyle'}</Text>
       </View>
     </TouchableOpacity>
   );
