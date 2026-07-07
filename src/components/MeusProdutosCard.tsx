@@ -1,21 +1,63 @@
 import React from 'react';
 import { StyleSheet, View, Text, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ProdutoMock } from '../types/produto';
+import { styles } from '../styles/meusprodutoscard.styles';
 
 interface Props {
-  produto: ProdutoMock;
-  onEditar: (id: number) => void;
+  produto: any;
+  onEditar: (produto: any) => void;
   onDeletar: (id: number) => void;
 }
 
 export default function MeusProdutosCard({ produto, onEditar, onDeletar }: Props) {
+  
+  const obterUrlImagem = () => {
+    if (!produto) return 'https://via.placeholder.com/150';
+    const fotoDoProduto = produto.fotos;
+    if (!fotoDoProduto) return 'https://via.placeholder.com/150';
+
+    let nomeArquivo = '';
+    if (typeof fotoDoProduto === 'string') {
+      nomeArquivo = fotoDoProduto;
+    } else if (Array.isArray(fotoDoProduto) && fotoDoProduto.length > 0) {
+      const primeira = fotoDoProduto[0];
+      nomeArquivo = typeof primeira === 'string' ? primeira : (primeira?.fotoUrl || primeira?.foto_url || '');
+    } else if (typeof fotoDoProduto === 'object') {
+      nomeArquivo = fotoDoProduto.fotoUrl || fotoDoProduto.foto_url || '';
+    }
+
+    if (!nomeArquivo) return 'https://via.placeholder.com/150';
+
+    if (nomeArquivo.startsWith('http://') || nomeArquivo.startsWith('https://')) {
+      if (nomeArquivo.includes('localhost:8080')) {
+        return nomeArquivo.replace('localhost:8080', '192.168.0.8:8080');
+      }
+      return nomeArquivo;
+    }
+
+    return `http://192.168.0.8:8080/uploads/${nomeArquivo}`;
+  };
+
+  const renderPreco = () => {
+    const valor = produto.preco;
+    if (valor === 0 || valor === '0' || valor === 'DOAÇÃO' || valor === undefined) {
+      return 'DOAÇÃO';
+    }
+    
+    const valorNumerico = typeof valor === 'number' ? valor : parseFloat(valor);
+    if (isNaN(valorNumerico) || valorNumerico === 0) {
+      return 'DOAÇÃO';
+    }
+
+    return `R$ ${valorNumerico.toFixed(2)}`;
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: produto.fotos }} style={styles.image} />
+        <Image source={{ uri: obterUrlImagem() }} style={styles.image} />
         <View style={styles.tagPreco}>
-          <Text style={styles.textoPreco}>R$ {produto.preco.toFixed(2)}</Text>
+          <Text style={styles.textoPreco}>{renderPreco()}</Text>
         </View>
       </View>
 
@@ -23,8 +65,9 @@ export default function MeusProdutosCard({ produto, onEditar, onDeletar }: Props
         <Text style={styles.titulo} numberOfLines={2}>{produto.nome}</Text>
       </View>
 
+      {}
       <View style={styles.acoesContainer}>
-        <TouchableOpacity style={styles.botaoEditar} onPress={() => onEditar(produto.id)} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.botaoEditar} onPress={() => onEditar(produto)} activeOpacity={0.7}>
           <Text style={styles.textoBotao}>Editar</Text>
           <Ionicons name="create-outline" size={16} color="#fff" />
         </TouchableOpacity>
@@ -37,87 +80,3 @@ export default function MeusProdutosCard({ produto, onEditar, onDeletar }: Props
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 14,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#eee',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  imageContainer: {
-    position: 'relative',
-    width: 90,
-    height: 90,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain',
-  },
-  tagPreco: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#ff0000',
-    paddingVertical: 2,
-    alignItems: 'center',
-  },
-  textoPreco: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 10,
-  },
-  infoContainer: {
-    flex: 1,
-    paddingHorizontal: 12,
-    justifyContent: 'center',
-  },
-  titulo: {
-    fontSize: 16,
-    color: '#000',
-    fontWeight: '500',
-  },
-  acoesContainer: {
-    gap: 8,
-    justifyContent: 'center',
-    width: 100,
-  },
-  botaoEditar: {
-    backgroundColor: '#000',
-    flexDirection: 'row',
-    height: 34,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  botaoDeletar: {
-    backgroundColor: '#ff0000',
-    flexDirection: 'row',
-    height: 34,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  textoBotao: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-});
