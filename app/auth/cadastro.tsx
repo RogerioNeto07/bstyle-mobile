@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityInd
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../src/services/api';
-import { styles } from './cadastro.style';
+import { styles } from '../../src/styles/cadastro.styles';
 
 export default function CadastroScreen() {
   const router = useRouter();
