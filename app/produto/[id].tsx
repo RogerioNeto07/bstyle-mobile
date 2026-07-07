@@ -86,7 +86,6 @@ export default function ProdutoDetalhesScreen() {
       </View>
     );
   }
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -105,24 +104,37 @@ export default function ProdutoDetalhesScreen() {
             <View style={styles.textoIdentificacao}>
               <Text style={styles.nomeProduto}>{produto.nome}</Text>
               
-              <TouchableOpacity 
-                onPress={() => router.push(`/vendedor/${produto.vendedorId}`)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.vendedorProduto}>
-                  por: {produto.vendedorNome || 'BStyle Vendor'}
-                </Text>
-              </TouchableOpacity>
+             <TouchableOpacity 
+                  onPress={() => {
+                    
+                    if (produto?.vendedorId) {
+                      router.push(`/vendedor/${produto.vendedorId}`);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.vendedorProduto}>
+                    por: {produto.vendedorNome || 'BStyle Vendor'}
+                  </Text>
+                </TouchableOpacity>
             </View>
             <View style={styles.tagPreco}>
-              <Text style={styles.textoPreco}>R$ {produto.preco ? produto.preco.toFixed(2) : '0.00'}</Text>
-            </View>
+                <Text style={styles.textoPreco}>
+                  {produto.preco === 0 ? 'DOAÇÃO' : `R$ ${produto.preco.toFixed(2)}`}
+                </Text>
+              </View>
           </View>
 
           <View style={styles.secaoDetalhes}>
             <Text style={styles.tituloSecao}>Informações:</Text>
             
-            {/* Renderiza dinamicamente a lista de cores vindas do DTO */}
+            <Text style={styles.itemInfo}>
+              Descrição:{' '}
+              <Text style={styles.valorInfo}>
+                {produto.descricao || 'Sem descrição informada para este produto.'}
+              </Text>
+            </Text>
+
             <Text style={styles.itemInfo}>
               Cores disponíveis:{' '}
               <Text style={styles.valorInfo}>
@@ -132,7 +144,6 @@ export default function ProdutoDetalhesScreen() {
               </Text>
             </Text>
 
-            {/* Renderiza dinamicamente as Tags/Categorias do DTO */}
             <Text style={styles.itemInfo}>
               Tags:{' '}
               <Text style={styles.valorInfo}>
@@ -141,28 +152,16 @@ export default function ProdutoDetalhesScreen() {
                   : 'Nenhuma'}
               </Text>
             </Text>
-
-            {/* Exibe o tipo do produto */}
             {produto.tipoNome && (
               <Text style={styles.itemInfo}>
                 Categoria: <Text style={styles.valorInfo}>{produto.tipoNome}</Text>
               </Text>
             )}
 
-            {/* Exibe a quantidade em estoque */}
             <Text style={styles.itemInfo}>
               Quantidade em estoque: <Text style={styles.valorInfo}>{produto.quantidade ?? 0}</Text>
             </Text>
 
-            {/* Exibe a descrição real digitada */}
-            <Text style={styles.itemInfo}>
-              Descrição:{' '}
-              <Text style={styles.valorInfo}>
-                {produto.descricao || 'Sem descrição informada para este produto.'}
-              </Text>
-            </Text>
-
-            {/* Localização opcional se o DTO trouxer */}
             {produto.vendedorCidade && (
               <Text style={styles.itemInfo}>
                 Localização: <Text style={styles.valorInfo}>{produto.vendedorCidade}</Text>

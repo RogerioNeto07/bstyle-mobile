@@ -50,11 +50,13 @@ export default function ProdutoCard({ produto }: Props) {
       activeOpacity={0.8}
     >
       <View style={styles.imageContainer}>
-        <Image source={{ uri: obterUrlImagem() }} style={styles.image} />
-        <View style={styles.tagPreco}>
-          <Text style={styles.textoPreco}>R$ {produto.preco.toFixed(2)}</Text>
-        </View>
-      </View>
+  <Image source={{ uri: obterUrlImagem() }} style={styles.image} />
+  <View style={styles.tagPreco}>
+    <Text style={styles.textoPreco}>
+      {produto.preco === 0 ? 'DOAÇÃO' : `R$ ${produto.preco.toFixed(2)}`}
+    </Text>
+  </View>
+</View>
       
       <View style={styles.infoContainer}>
         <Text style={styles.titulo}>{produto.nome}</Text>

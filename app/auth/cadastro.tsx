@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import api from '../../src/services/api';
+import { styles } from './cadastro.style';
 
 export default function CadastroScreen() {
   const router = useRouter();
+  const [fotoUri, setFotoUri] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [nome, setNome] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -13,10 +17,109 @@ export default function CadastroScreen() {
   const [numero, setNumero] = useState('');
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('');
+  const [carregando, setCarregando] = useState(false);
 
-  const handleCadastro = () => {
-    router.replace('/auth/login');
+  const lidarSelecaoImagem = () => {
+    Alert.alert(
+      'Selecione uma Foto',
+      'De onde você deseja escolher a sua foto de perfil?',
+      [
+        { text: 'Tirar Foto (Câmera)', onPress: tirarFoto },
+        { text: 'Escolher da Galeria', onPress: escolherDaGaleria },
+        { text: 'Cancelar', style: 'cancel' }
+      ]
+    );
   };
+
+  const tirarFoto = async () => {
+    const permissaoCamera = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissaoCamera.granted) {
+      Alert.alert('Permissão necessária', 'Precisamos de acesso à sua câmera para registrar a foto.');
+      return;
+    }
+
+    const resultado = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!resultado.canceled && resultado.assets && resultado.assets.length > 0) {
+      setFotoUri(resultado.assets[0].uri);
+    }
+  };
+
+  const escolherDaGaleria = async () => {
+    const permissaoGaleria = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissaoGaleria.granted) {
+      Alert.alert('Permissão necessária', 'Precisamos de acesso à sua galeria para escolher a foto.');
+      return;
+    }
+
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!resultado.canceled && resultado.assets && resultado.assets.length > 0) {
+      setFotoUri(resultado.assets[0].uri);
+    }
+  };
+
+  const handleCadastro = async () => {
+  if (!email || !nome || !senha || !confirmarSenha) {
+    Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios.');
+    return;
+  }
+
+  if (senha !== confirmarSenha) {
+    Alert.alert('Erro', 'As senhas informadas não coincidem.');
+    return;
+  }
+
+  try {
+    setCarregando(true);
+    const dadosFormulario = new FormData();
+
+    dadosFormulario.append('login', email.trim());
+    dadosFormulario.append('nome', nome.trim());
+    dadosFormulario.append('telefone', whatsapp.trim());
+    dadosFormulario.append('senha', senha);
+    dadosFormulario.append('rua', rua.trim());
+    dadosFormulario.append('numero', numero.trim());
+    dadosFormulario.append('cidade', cidade.trim());
+    dadosFormulario.append('estado', estado.trim().toUpperCase());
+
+    if (fotoUri) {
+      const nomeArquivo = fotoUri.split('/').pop();
+      const matchExtensao = /\.(\w+)$/.exec(nomeArquivo || '');
+      const tipoArquivo = matchExtensao ? `image/${matchExtensao[1]}` : `image/jpeg`;
+
+      dadosFormulario.append('foto', {
+        uri: fotoUri,
+        name: nomeArquivo || 'perfil.jpg',
+        type: tipoArquivo,
+      } as any);
+    }
+
+    await api.post('/auth/registrar', dadosFormulario, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    Alert.alert('Sucesso 🎉', 'Conta criada com sucesso! Faça login para continuar.');
+    router.replace('/auth/login');
+  } catch (error: any) {
+    console.error('Erro ao cadastrar usuário:', error);
+    Alert.alert('Erro', 'Não foi possível efetuar o cadastro. Verifique os dados inseridos.');
+  } finally {
+    setCarregando(false);
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -29,57 +132,65 @@ export default function CadastroScreen() {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Cadastre-se no BStyle</Text>
 
-            <TouchableOpacity style={styles.botaoFoto}>
-              <Text style={styles.textoBotaoFoto}>Anexar Foto de Perfil</Text>
+            <TouchableOpacity style={styles.botaoFoto} onPress={lidarSelecaoImagem} disabled={carregando}>
+              {fotoUri ? (
+                <Image source={{ uri: fotoUri }} style={{ width: '100%', height: '100%', borderRadius: 8, resizeMode: 'cover' }} />
+              ) : (
+                <Text style={styles.textoBotaoFoto}>Anexar Foto de Perfil</Text>
+              )}
             </TouchableOpacity>
             
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>E-mail:</Text>
-              <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+              <Text style={styles.label}>E-mail *:</Text>
+              <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" editable={!carregando} />
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Nome:</Text>
-              <TextInput style={styles.input} value={nome} onChangeText={setNome} />
+              <Text style={styles.label}>Nome *:</Text>
+              <TextInput style={styles.input} value={nome} onChangeText={setNome} editable={!carregando} />
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Whatsapp:</Text>
-              <TextInput style={styles.input} value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" />
+              <TextInput style={styles.input} value={whatsapp} onChangeText={setWhatsapp} keyboardType="phone-pad" editable={!carregando} />
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Rua:</Text>
-              <TextInput style={styles.input} value={rua} onChangeText={setRua} />
+              <TextInput style={styles.input} value={rua} onChangeText={setRua} editable={!carregando} />
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Número:</Text>
-              <TextInput style={styles.input} value={numero} onChangeText={setNumero} />
+              <TextInput style={styles.input} value={numero} onChangeText={setNumero} editable={!carregando} />
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Cidade:</Text>
-              <TextInput style={styles.input} value={cidade} onChangeText={setCidade} />
+              <TextInput style={styles.input} value={cidade} onChangeText={setCidade} editable={!carregando} />
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Estado:</Text>
-              <TextInput style={styles.input} value={estado} onChangeText={setEstado} maxLength={2} autoCapitalize="characters" />
+              <TextInput style={styles.input} value={estado} onChangeText={setEstado} maxLength={2} autoCapitalize="characters" editable={!carregando} />
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Senha:</Text>
-              <TextInput style={styles.input} secureTextEntry value={senha} onChangeText={setSenha} />
+              <Text style={styles.label}>Senha *:</Text>
+              <TextInput style={styles.input} secureTextEntry value={senha} onChangeText={setSenha} editable={!carregando} />
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.labelLongo}>Confirmar senha:</Text>
-              <TextInput style={styles.input} secureTextEntry value={confirmarSenha} onChangeText={setConfirmarSenha} />
+              <Text style={styles.labelLongo}>Confirmar senha *:</Text>
+              <TextInput style={styles.input} secureTextEntry value={confirmarSenha} onChangeText={setConfirmarSenha} editable={!carregando} />
             </View>
 
-            <TouchableOpacity style={styles.botaoCadastrar} onPress={handleCadastro}>
-              <Text style={styles.textoBotao}>Cadastrar</Text>
+            <TouchableOpacity style={styles.botaoCadastrar} onPress={handleCadastro} disabled={carregando}>
+              {carregando ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.textoBotao}>Cadastrar</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -89,115 +200,3 @@ export default function CadastroScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  header: {
-    height: 100,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 30,
-  },
-  logo: {
-    color: '#fff',
-    fontSize: 36,
-    fontFamily: 'InriaSerif-Bold',
-  },
-  content: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  card: {
-    backgroundColor: '#fff',
-    width: '100%',
-    borderRadius: 30,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    marginBottom: 20,
-    color: '#000',
-  },
-  botaoFoto: {
-    backgroundColor: '#f9f9f9',
-    borderWidth: 1,
-    borderColor: '#000',
-    borderStyle: 'dashed',
-    width: '100%',
-    height: 46,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  textoBotaoFoto: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 16,
-  },
-  label: {
-    width: 90,
-    fontSize: 14,
-    color: '#000',
-  },
-  labelLongo: {
-    width: 90,
-    fontSize: 12,
-    color: '#000',
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#000',
-    height: 44,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
-    fontSize: 15,
-    color: '#000',
-  },
-  botaoCadastrar: {
-    backgroundColor: '#24E300',
-    paddingHorizontal: 40,
-    height: 44,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  textoBotao: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  bottomBar: {
-    height: 50,
-    backgroundColor: '#000',
-  },
-});

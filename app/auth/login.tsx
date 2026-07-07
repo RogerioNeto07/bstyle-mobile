@@ -1,14 +1,45 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../../src/services/api';
+import { styles } from './login.style';
 
 export default function LoginScreen() {
   const router = useRouter();
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
+  const [carregando, setCarregando] = useState(false);
 
-  const handleLogin = () => {
-    router.replace('/(tabs)');
+  const handleLogin = async () => {
+    if (!usuario.trim() || !senha.trim()) {
+      Alert.alert('Aviso', 'Preencha o usuário e a senha.');
+      return;
+    }
+
+    try {
+      setCarregando(true);
+
+      const resposta = await api.post('/auth/login', {
+        login: usuario.trim(),
+        senha: senha
+      });
+
+      const credenciaisBase64 = btoa(`${usuario.trim()}:${senha}`);
+      api.defaults.headers.common['Authorization'] = `Basic ${credenciaisBase64}`;
+
+      await AsyncStorage.setItem('@BStyle:token', credenciaisBase64);
+
+      await AsyncStorage.setItem('@BStyle:usuario', JSON.stringify(resposta.data));
+
+      router.replace('/(tabs)');
+
+    } catch (error: any) {
+      console.error('Erro ao fazer login:', error);
+      Alert.alert('Erro de Autenticação', 'Usuário ou senha incorretos.');
+    } finally {
+      setCarregando(false);
+    }
   };
 
   return (
@@ -21,13 +52,14 @@ export default function LoginScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Faça login no BStyle</Text>
           
-          <View style={styles.inputContainer}>
+         <View style={styles.inputContainer}>
             <Text style={styles.label}>Usuário:</Text>
             <TextInput 
               style={styles.input} 
               value={usuario}
               onChangeText={setUsuario}
               autoCapitalize="none"
+              editable={!carregando}
             />
           </View>
 
@@ -38,18 +70,23 @@ export default function LoginScreen() {
               secureTextEntry 
               value={senha}
               onChangeText={setSenha}
+              editable={!carregando}
             />
           </View>
 
-          <TouchableOpacity style={styles.botaoEntrar} onPress={handleLogin}>
-            <Text style={styles.textoBotao}>Entrar</Text>
+          <TouchableOpacity style={styles.botaoEntrar} onPress={handleLogin} disabled={carregando}>
+            {carregando ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.textoBotao}>Entrar</Text>
+            )}
           </TouchableOpacity>
         </View>
 
         <View style={styles.footerAcoes}>
           <Text style={styles.textoFooter}>Ainda não possui conta?</Text>
           <Text style={styles.textoFooterSub}>cadastre-se agora:</Text>
-          <TouchableOpacity style={styles.botaoCadastrar} onPress={() => router.push('/auth/cadastro')}>
+          <TouchableOpacity style={styles.botaoCadastrar} onPress={() => router.push('/auth/cadastro')} disabled={carregando}>
             <Text style={styles.textoBotaoCadastrar}>Cadastrar</Text>
           </TouchableOpacity>
         </View>
@@ -59,116 +96,3 @@ export default function LoginScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  header: {
-    height: 100,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 30,
-  },
-  logo: {
-    color: '#fff',
-    fontSize: 36,
-    fontFamily: 'InriaSerif-Bold',
-  },
-  content: {
-    flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  card: {
-    backgroundColor: '#fff',
-    width: '100%',
-    borderRadius: 30,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    marginBottom: 24,
-    color: '#000',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 16,
-  },
-  label: {
-    width: 80,
-    fontSize: 15,
-    color: '#000',
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#000',
-    height: 44,
-    paddingHorizontal: 12,
-    backgroundColor: '#fff',
-    fontSize: 15,
-    color: '#000',
-  },
-  botaoEntrar: {
-    backgroundColor: '#24E300',
-    width: 120,
-    height: 44,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  textoFooter: {
-    fontSize: 14,
-    color: '#000',
-    textAlign: 'center',
-  },
-  textoFooterSub: {
-    fontSize: 14,
-    color: '#000',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  footerAcoes: {
-    marginTop: 30,
-    alignItems: 'center',
-  },
-  botaoCadastrar: {
-    backgroundColor: '#C4C4C4',
-    paddingHorizontal: 30,
-    height: 44,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  textoBotao: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  textoBotaoCadastrar: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  bottomBar: {
-    height: 50,
-    backgroundColor: '#000',
-  },
-});

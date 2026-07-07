@@ -1,0 +1,113 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  header: {
+    height: 100,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 30,
+  },
+  logo: {
+    color: '#fff',
+    fontSize: 36,
+    fontFamily: 'InriaSerif-Bold',
+  },
+  content: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  card: {
+    backgroundColor: '#fff',
+    width: '100%',
+    borderRadius: 30,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '500',
+    marginBottom: 20,
+    color: '#000',
+  },
+  botaoFoto: {
+    backgroundColor: '#f9f9f9',
+    borderWidth: 1,
+    borderColor: '#000',
+    borderStyle: 'dashed',
+    width: '100%',
+    height: 46,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  textoBotaoFoto: {
+    color: '#000',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 16,
+  },
+  label: {
+    width: 90,
+    fontSize: 14,
+    color: '#000',
+  },
+  labelLongo: {
+    width: 90,
+    fontSize: 12,
+    color: '#000',
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#000',
+    height: 44,
+    paddingHorizontal: 12,
+    backgroundColor: '#fff',
+    fontSize: 15,
+    color: '#000',
+  },
+  botaoCadastrar: {
+    backgroundColor: '#24E300',
+    paddingHorizontal: 40,
+    height: 44,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  textoBotao: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  bottomBar: {
+    height: 50,
+    backgroundColor: '#000',
+  },
+});
