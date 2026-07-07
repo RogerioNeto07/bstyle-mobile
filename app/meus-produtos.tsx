@@ -9,7 +9,6 @@ import { styles } from '../src/styles/meusprodutos.styles';
 
 export default function MeusProdutosScreen() {
   const router = useRouter();
-  
   const [meusProdutos, setMeusProdutos] = useState<any[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -53,11 +52,12 @@ export default function MeusProdutosScreen() {
         api.get('/cores'),
         api.get('/tags')
       ]);
+
       if (resTipos.status === 'fulfilled') setTipos(resTipos.value.data);
       if (resCores.status === 'fulfilled') setCores(resCores.value.data);
       if (resTags.status === 'fulfilled') setTags(resTags.value.data);
     } catch (err) {
-      console.warn("Usando chips de fallback estrutural");
+      console.error(err);
     }
   };
 
@@ -66,37 +66,44 @@ export default function MeusProdutosScreen() {
     carregarMetadados();
   }, []);
 
-  const obterUrlImagem = (prod: any) => {
-    if (!prod) return 'https://via.placeholder.com/150';
-    const fotoDoProduto = prod.fotos;
-    if (!fotoDoProduto) return 'https://via.placeholder.com/150';
+  const handleEditar = (produto: any) => {
+    setProdutoSendoEditado(produto);
+    setNome(produto.nome || '');
+    setPreco(produto.preco !== undefined ? produto.preco.toString() : '');
+    setQuantidade(produto.quantidade !== undefined ? produto.quantidade.toString() : '');
+    setDescricao(produto.descricao || '');
+    setNovaImagemUri(null);
 
-    let nomeArquivo = '';
-    if (typeof fotoDoProduto === 'string') {
-      nomeArquivo = fotoDoProduto;
-    } else if (Array.isArray(fotoDoProduto) && fotoDoProduto.length > 0) {
-      const primeira = fotoDoProduto[0];
-      nomeArquivo = typeof primeira === 'string' ? primeira : (primeira?.fotoUrl || primeira?.foto_url || '');
-    } else if (typeof fotoDoProduto === 'object') {
-      nomeArquivo = fotoDoProduto.fotoUrl || fotoDoProduto.foto_url || '';
-    }
+    setTipoSelecionado(produto.tipoId || null);
+    setCoresSelecionadas(produto.coresIds || []);
+    setTagsSelecionadas(produto.tagsIds || []);
 
-    if (!nomeArquivo) return 'https://via.placeholder.com/150';
-
-    if (nomeArquivo.startsWith('http://') || nomeArquivo.startsWith('https://')) {
-      if (nomeArquivo.includes('localhost:8080')) {
-        return nomeArquivo.replace('localhost:8080', '192.168.0.8:8080');
-      }
-      return nomeArquivo;
-    }
-
-    return `http://192.168.0.8:8080/uploads/${nomeArquivo}`;
+    setModalVisivel(true);
   };
 
-  const escolherImagemdaGaleria = async () => {
+  const tirarFoto = async () => {
+    const permissao = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissao.granted) {
+      Alert.alert('Aviso', 'Permissão para câmera é necessária.');
+      return;
+    }
+
+    const resultado = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!resultado.canceled && resultado.assets.length > 0) {
+      setNovaImagemUri(resultado.assets[0].uri);
+    }
+  };
+
+  const escolherFotoDaGaleria = async () => {
     const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissao.granted) {
-      Alert.alert('Permissão necessária', 'Precisamos de acesso às suas fotos para alterar a imagem.');
+      Alert.alert('Aviso', 'Permissão para galeria é necessária.');
       return;
     }
 
@@ -112,30 +119,27 @@ export default function MeusProdutosScreen() {
     }
   };
 
-  const handleEditar = (produto: any) => {
-    setProdutoSendoEditado(produto);
-    setNome(produto.nome || '');
-    setPreco(produto.preco !== undefined ? produto.preco.toString() : '0');
-    setQuantidade(produto.quantidade !== undefined ? produto.quantidade.toString() : '1');
-    setDescricao(produto.descricao || '');
-    setNovaImagemUri(null);
-
-    setTipoSelecionado(produto.tipoId || produto.tipo?.id || null);
-    setCoresSelecionadas(produto.coresIds || produto.cores?.map((c: any) => c.id) || []);
-    setTagsSelecionadas(produto.tagsIds || produto.tags?.map((t: any) => t.id) || []);
-
-    setModalVisivel(true);
-  };
-
-  const alternarCor = (corId: number) => {
-    setCoresSelecionadas(prev => 
-      prev.includes(corId) ? prev.filter(id => id !== corId) : [...prev, corId]
+  const selecionarImagem = () => {
+    Alert.alert(
+      'Imagem do Produto',
+      'Como deseja alterar a imagem do produto?',
+      [
+        { text: 'Tirar Foto (Câmera)', onPress: tirarFoto },
+        { text: 'Escolher da Galeria', onPress: escolherFotoDaGaleria },
+        { text: 'Cancelar', style: 'cancel' }
+      ]
     );
   };
 
-  const alternarTag = (tagId: number) => {
+  const alternarCor = (id: number) => {
+    setCoresSelecionadas(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const alternarTag = (id: number) => {
     setTagsSelecionadas(prev => 
-      prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
 
@@ -168,14 +172,20 @@ export default function MeusProdutosScreen() {
 
       if (novaImagemUri) {
         const uriParts = novaImagemUri.split('/');
-        const fileName = uriParts[uriParts.length - 1];
-        const fileType = fileName.split('.').pop();
+        const originalFileName = uriParts[uriParts.length - 1];
+        const extensao = originalFileName.split('.').pop()?.toLowerCase();
+        
+        const mimeType = (extensao === 'png') ? 'image/png' : 'image/jpeg';
+        const fileName = originalFileName.includes('.') ? originalFileName : `foto_${Date.now()}.jpg`;
 
-        formData.append('foto', {
+        const arquivoFoto = {
           uri: novaImagemUri,
           name: fileName,
-          type: `image/${fileType}`,
-        } as any);
+          type: mimeType,
+        } as any;
+
+        formData.append('foto', arquivoFoto);
+        formData.append('fotos', arquivoFoto);
       }
 
       const resposta = await api.put(`/produtos/${produtoSendoEditado.id}`, formData, {
@@ -219,6 +229,35 @@ export default function MeusProdutosScreen() {
     );
   };
 
+  const obterUrlImagemEdicao = () => {
+    if (novaImagemUri) return novaImagemUri;
+    if (!produtoSendoEditado) return 'https://via.placeholder.com/150';
+    
+    const foto = produtoSendoEditado.fotos;
+    if (!foto) return 'https://via.placeholder.com/150';
+
+    let nomeArquivo = '';
+    if (typeof foto === 'string') {
+      nomeArquivo = foto;
+    } else if (Array.isArray(foto) && foto.length > 0) {
+      const primeira = foto[0];
+      nomeArquivo = typeof primeira === 'string' ? primeira : (primeira?.fotoUrl || primeira?.foto_url || '');
+    } else if (typeof foto === 'object') {
+      nomeArquivo = foto.fotoUrl || foto.foto_url || '';
+    }
+
+    if (!nomeArquivo) return 'https://via.placeholder.com/150';
+
+    if (nomeArquivo.startsWith('http://') || nomeArquivo.startsWith('https://')) {
+      if (nomeArquivo.includes('localhost:8080')) {
+        return nomeArquivo.replace('localhost:8080', '192.168.0.8:8080');
+      }
+      return nomeArquivo;
+    }
+
+    return `http://192.168.0.8:8080/uploads/${nomeArquivo}`;
+  };
+
   if (carregando) {
     return (
       <View style={styles.centerContainer}>
@@ -249,24 +288,13 @@ export default function MeusProdutosScreen() {
         <FlatList
           data={meusProdutos}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => {
-            const fakePreco = item.preco === 0 ? {
-              toFixed: () => 'DOAÇÃO',
-              toString: () => 'DOAÇÃO',
-              valueOf: () => 0
-            } : item.preco;
-
-            return (
-              <MeusProdutosCard 
-                produto={{
-                  ...item,
-                  preco: fakePreco
-                }} 
-                onEditar={() => handleEditar(item)} 
-                onDeletar={handleDeletar} 
-              />
-            );
-          }}
+          renderItem={({ item }) => (
+            <MeusProdutosCard 
+              produto={item} 
+              onEditar={handleEditar} 
+              onDeletar={handleDeletar} 
+            />
+          )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshing={carregando}
@@ -294,39 +322,35 @@ export default function MeusProdutosScreen() {
             <Text style={styles.modalTitulo}>Editar Produto</Text>
             
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalForm}>
-              <View style={styles.previewImagemContainer}>
-                <Image 
-                  source={{ uri: novaImagemUri || obterUrlImagem(produtoSendoEditado) }} 
-                  style={styles.previewImagem} 
-                  resizeMode="cover" 
-                />
-                <TouchableOpacity style={styles.botaoAlterarImagem} onPress={escolherImagemdaGaleria}>
+              
+              <TouchableOpacity style={styles.previewImagemContainer} onPress={selecionarImagem}>
+                <Image source={{ uri: obterUrlImagemEdicao() }} style={styles.previewImagem} resizeMode="cover" />
+                <View style={styles.botaoAlterarImagem}>
                   <Ionicons name="camera-outline" size={16} color="#fff" />
-                  <Text style={styles.textoAlterarImagem}>Alterar Foto</Text>
-                </TouchableOpacity>
-              </View>
+                  <Text style={styles.textoAlterarImagem}>Alterar Imagem</Text>
+                </View>
+              </TouchableOpacity>
 
               <View style={styles.modalInputGroup}>
                 <Text style={styles.modalLabel}>Nome do Produto:</Text>
-                <TextInput style={styles.modalInput} value={nome} onChangeText={setNome} placeholder="Ex: Camisa de Linho" />
+                <TextInput style={styles.modalInput} value={nome} onChangeText={setNome} placeholder="Ex: Camisa Vintage" />
               </View>
 
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalLabel}>Preço (Coloque 0 para DOAÇÃO):</Text>
+                <Text style={styles.modalLabel}>Preço (0 para DOAÇÃO):</Text>
                 <TextInput style={styles.modalInput} value={preco} onChangeText={setPreco} placeholder="Ex: 49.90 ou 0" keyboardType="numeric" />
               </View>
 
               <View style={styles.modalInputGroup}>
-                <Text style={styles.modalLabel}>Quantidade em Estoque:</Text>
-                <TextInput style={styles.modalInput} value={quantidade} onChangeText={setQuantidade} placeholder="Ex: 5" keyboardType="numeric" />
+                <Text style={styles.modalLabel}>Estoque:</Text>
+                <TextInput style={styles.modalInput} value={quantidade} onChangeText={setQuantidade} placeholder="Ex: 1" keyboardType="numeric" />
               </View>
 
               <View style={styles.modalInputGroup}>
                 <Text style={styles.modalLabel}>Descrição:</Text>
-                <TextInput style={[styles.modalInput, styles.modalInputArea]} value={descricao} onChangeText={setDescricao} placeholder="Descreva o produto..." multiline numberOfLines={3} />
+                <TextInput style={[styles.modalInput, styles.modalInputArea]} value={descricao} onChangeText={setDescricao} placeholder="Descrição do produto" multiline numberOfLines={3} />
               </View>
 
-              {}
               {tipos.length > 0 && (
                 <View style={styles.modalInputGroup}>
                   <Text style={styles.modalLabel}>Categoria / Tipo:</Text>
@@ -344,10 +368,9 @@ export default function MeusProdutosScreen() {
                 </View>
               )}
 
-              {}
               {cores.length > 0 && (
                 <View style={styles.modalInputGroup}>
-                  <Text style={styles.modalLabel}>Cores Disponíveis:</Text>
+                  <Text style={styles.modalLabel}>Cores:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollChips}>
                     {cores.map((c) => (
                       <TouchableOpacity 
@@ -362,10 +385,9 @@ export default function MeusProdutosScreen() {
                 </View>
               )}
 
-              {}
               {tags.length > 0 && (
                 <View style={styles.modalInputGroup}>
-                  <Text style={styles.modalLabel}>Tags / Estilos:</Text>
+                  <Text style={styles.modalLabel}>Estilos / Tags:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollChips}>
                     {tags.map((t) => (
                       <TouchableOpacity 
@@ -379,6 +401,7 @@ export default function MeusProdutosScreen() {
                   </ScrollView>
                 </View>
               )}
+
             </ScrollView>
 
             <View style={styles.modalBotoes}>
