@@ -84,8 +84,21 @@ API disponível em: http://localhost:8080
 | `GET`  | `/faturamento?periodo=2025-11` | Retorna faturamento filtrado por mês/ano                                    |
 | `GET`  | `/faturamento/detalhado`       | Faturamento diário ou por tipo de produto  |
 
-## Executando com Docker
-Certifique-se de ter Docker e Docker Compose instalados.
-Para construir e subir a imagem do projeto rode o comando:
+## Ajustando IP
+Quando clonar o projeto, substitua todas as instâncias do ip pelo ip da sua maquina, substitua usando a ferramenta de busca do VSCode para facilitar, lembre-se tambem de criar um arquivo env e colocar seu ip lá tambem
+
+## Executando O Frontend Mobile com Expo Go
 ```sh
-docker compose up -d --build
+npx expo start
+```
+
+## Executando o Backend
+clone o repositorio https://github.com/RogerioNeto07/BStyle/tree/projeto-final-ddm e execute:
+
+```sh
+docker compose up -d --build #para rodar no docker
+```
+ou
+```sh
+mnv spring-boot:run #para rodar localmente
+```
